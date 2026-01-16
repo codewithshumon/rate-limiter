@@ -132,34 +132,37 @@ class RateLimiter {
   }
 
   /**
-   * In-memory fallback implementation
+   * In-memory fallback implementation with locking
    * Used when Redis is unavailable
    */
   async processFallback(key, now, capacity, refillRate, cost, window) {
-    const bucket = await fallback.get(key);
-    
-    let tokens = capacity;
-    let lastRefill = now;
+    // Use locking to prevent race conditions
+    return await fallback.withLock(key, async () => {
+      const bucket = await fallback.get(key);
+      
+      let tokens = capacity;
+      let lastRefill = now;
 
-    if (bucket) {
-      const timePassed = now - bucket.lastRefill;
-      tokens = Math.min(capacity, bucket.tokens + (timePassed * refillRate));
-      lastRefill = now;
-    }
+      if (bucket) {
+        const timePassed = now - bucket.lastRefill;
+        tokens = Math.min(capacity, bucket.tokens + (timePassed * refillRate));
+        lastRefill = now;
+      }
 
-    const allowed = tokens >= cost;
-    let remaining = tokens;
-    let retryAfter = 0;
+      const allowed = tokens >= cost;
+      let remaining = tokens;
+      let retryAfter = 0;
 
-    if (allowed) {
-      remaining = tokens - cost;
-    } else {
-      retryAfter = Math.ceil((cost - tokens) / refillRate);
-    }
+      if (allowed) {
+        remaining = Math.max(0, tokens - cost);
+      } else {
+        retryAfter = Math.max(0, Math.ceil((cost - tokens) / refillRate));
+      }
 
-    await fallback.set(key, { tokens: remaining, lastRefill }, window * 2);
+      await fallback.set(key, { tokens: remaining, lastRefill }, window * 2);
 
-    return { allowed, remaining: Math.floor(remaining), retryAfter };
+      return { allowed, remaining: Math.floor(remaining), retryAfter };
+    });
   }
 
   /**

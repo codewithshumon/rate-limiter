@@ -1,6 +1,7 @@
 class InMemoryFallback {
   constructor() {
     this.store = new Map();
+    this.locks = new Map();
     this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
   }
 
@@ -19,6 +20,24 @@ class InMemoryFallback {
     this.store.delete(key);
   }
 
+  async acquireLock(key) {
+    const lockKey = `lock:${key}`;
+    while (this.locks.has(lockKey)) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    this.locks.set(lockKey, true);
+    return () => this.locks.delete(lockKey);
+  }
+
+  async withLock(key, fn) {
+    const release = await this.acquireLock(key);
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
   cleanup() {
     const now = Date.now();
     for (const [key, value] of this.store.entries()) {
@@ -31,6 +50,7 @@ class InMemoryFallback {
   destroy() {
     clearInterval(this.cleanupInterval);
     this.store.clear();
+    this.locks.clear();
   }
 }
 
