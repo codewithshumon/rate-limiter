@@ -4,6 +4,7 @@ class RedisClient {
   constructor() {
     this.client = null;
     this.isConnected = false;
+    this.hasLoggedError = false;
   }
 
   async connect() {
@@ -16,7 +17,10 @@ class RedisClient {
       });
 
       this.client.on('error', (err) => {
-        console.error('Redis Client Error:', err);
+        if (!this.hasLoggedError) {
+          console.warn('⚠️  Redis unavailable - using in-memory fallback');
+          this.hasLoggedError = true;
+        }
         this.isConnected = false;
       });
 
