@@ -5,6 +5,11 @@ import fallback from '../src/utils/fallback.js';
 describe('Edge Cases & Error Handling', () => {
   beforeAll(async () => {
     await rateLimiter.initialize();
+  }, 10000);
+
+  afterAll(async () => {
+    fallback.destroy();
+    await redisClient.disconnect();
   });
 
   describe('Redis Failure Handling', () => {
@@ -172,9 +177,5 @@ describe('Edge Cases & Error Handling', () => {
         expect(result).toHaveProperty('retryAfter');
       });
     });
-  });
-
-  afterAll(() => {
-    fallback.destroy();
   });
 });

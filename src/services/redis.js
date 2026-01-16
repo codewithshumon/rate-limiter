@@ -12,7 +12,9 @@ class RedisClient {
       this.client = redis.createClient({
         socket: {
           host: process.env.REDIS_HOST || 'localhost',
-          port: process.env.REDIS_PORT || 6379
+          port: process.env.REDIS_PORT || 6379,
+          connectTimeout: 2000,
+          lazyConnect: true
         }
       });
 
@@ -26,15 +28,25 @@ class RedisClient {
 
       this.client.on('connect', () => {
         this.isConnected = true;
-        console.log('Redis connected');
+        console.log('✅ Redis connected');
       });
 
-      await this.client.connect();
+      await Promise.race([
+        this.client.connect(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Redis connection timeout')), 2000)
+        )
+      ]);
+      
       return this.client;
     } catch (error) {
-      console.error('Redis connection failed:', error);
+      if (!this.hasLoggedError) {
+        console.warn('⚠️  Redis unavailable - using in-memory fallback');
+        this.hasLoggedError = true;
+      }
       this.isConnected = false;
-      throw error;
+      this.client = null;
+      return null;
     }
   }
 
@@ -44,6 +56,12 @@ class RedisClient {
 
   isHealthy() {
     return this.isConnected && this.client && this.client.isOpen;
+  }
+
+  async disconnect() {
+    if (this.client && this.client.isOpen) {
+      await this.client.disconnect();
+    }
   }
 }
 

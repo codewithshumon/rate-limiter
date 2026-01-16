@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimiter from './services/rateLimiter.js';
-import rateLimitMiddleware from './middleware/rateLimiter.js';
+import rateLimitMiddleware from './middleware/rateLimitMiddleware.js';
 import analytics from './services/analytics.js';
 
 const app = express();

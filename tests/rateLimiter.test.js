@@ -1,8 +1,13 @@
 import rateLimiter from '../src/services/rateLimiter.js';
+import redisClient from '../src/services/redis.js';
 
 describe('RateLimiter Core Functionality', () => {
   beforeAll(async () => {
     await rateLimiter.initialize();
+  }, 10000);
+
+  afterAll(async () => {
+    await redisClient.disconnect();
   });
 
   describe('Basic Rate Limiting', () => {
@@ -107,6 +112,14 @@ describe('RateLimiter Core Functionality', () => {
 });
 
 describe('Concurrent Requests', () => {
+  beforeAll(async () => {
+    await rateLimiter.initialize();
+  }, 10000);
+
+  afterAll(async () => {
+    await redisClient.disconnect();
+  });
+
   test('should handle concurrent requests safely', async () => {
     const userId = 'concurrent-user';
     

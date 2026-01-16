@@ -2,11 +2,11 @@
   "name": "smart-rate-limiter",
   "version": "1.0.0",
   "description": "Smart rate limiting service with tier and geographic support",
-  "main": "src/app.js",
   "type": "module",
+  "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "dev": "nodemon src/app.js"
   },
   "dependencies": {
