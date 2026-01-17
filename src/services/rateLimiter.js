@@ -22,23 +22,16 @@ class RateLimiter {
     }
   }
 
-  /**
-   * Token Bucket with Sliding Window implementation
-   * Core algorithm that handles rate limiting
-   */
   async checkRateLimit(userId, endpoint, tier = 'free', region = 'default', requestCost = 1) {
-    // Handle unlimited tier efficiently
     if (tier === 'unlimited') {
       return { allowed: true, remaining: Infinity, retryAfter: 0 };
     }
 
     const endpointConfig = LIMITS.endpoints[endpoint];
     if (!endpointConfig) {
-      // Unknown endpoint, allow by default
       return { allowed: true, remaining: 1000, retryAfter: 0 };
     }
 
-    // Calculate effective limits with multipliers
     const tierMultiplier = LIMITS.tiers[tier] || 1;
     const regionMultiplier = LIMITS.regions[region] || LIMITS.regions.default;
     const slowStartMultiplier = await this.getSlowStartMultiplier(userId);
@@ -48,11 +41,11 @@ class RateLimiter {
     );
     const burstTokens = Math.floor(endpointConfig.burst * tierMultiplier);
     const totalCapacity = maxTokens + burstTokens;
-    const refillRate = maxTokens / endpointConfig.window; // tokens per second
+    const refillRate = maxTokens / endpointConfig.window;
     const cost = (endpointConfig.cost || 1) * requestCost;
 
     const key = this.generateKey(userId, endpoint);
-    const now = Date.now() / 1000; // current time in seconds
+    const now = Date.now() / 1000;
 
     try {
       let result;
@@ -63,23 +56,16 @@ class RateLimiter {
         result = await this.processRedis(key, now, totalCapacity, refillRate, cost, endpointConfig.window);
       }
 
-      // Track analytics
       analytics.track(userId, endpoint, tier, region, result.allowed);
 
       return result;
     } catch (error) {
       console.error('Rate limit check error:', error);
-      // On error, fail open (allow request) for availability
       return { allowed: true, remaining: maxTokens, retryAfter: 0 };
     }
   }
 
-  /**
-   * Optimized Redis implementation using Lua script
-   * Reduces multiple Redis calls to single atomic operation
-   */
   async processRedis(key, now, capacity, refillRate, cost, window) {
-    // Lua script for atomic token bucket operations
     const luaScript = `
       local key = KEYS[1]
       local now = tonumber(ARGV[1])
@@ -131,12 +117,8 @@ class RateLimiter {
     };
   }
 
-  /**
-   * In-memory fallback implementation with locking
-   * Used when Redis is unavailable
-   */
+
   async processFallback(key, now, capacity, refillRate, cost, window) {
-    // Use locking to prevent race conditions
     return await fallback.withLock(key, async () => {
       const bucket = await fallback.get(key);
       
@@ -165,10 +147,6 @@ class RateLimiter {
     });
   }
 
-  /**
-   * Implements slow-start for new users
-   * Gradually increases limits over initial period
-   */
   async getSlowStartMultiplier(userId) {
     if (!LIMITS.slowStart.enabled) return 1.0;
 
@@ -198,29 +176,22 @@ class RateLimiter {
         return 1.0;
       }
 
-      // Linear ramp-up from startMultiplier to 1.0
       const progress = elapsed / LIMITS.slowStart.durationSeconds;
       return LIMITS.slowStart.startMultiplier + 
              (progress * (1.0 - LIMITS.slowStart.startMultiplier));
     } catch (error) {
       console.error('Slow-start check error:', error);
-      return 1.0; // default to full limit on error
+      return 1.0; 
     }
   }
 
   generateKey(userId, endpoint) {
-    // Clean endpoint path for key
     const cleanPath = endpoint.replace(/\//g, ':');
     return `ratelimit:${userId}${cleanPath}`;
   }
 
-  /**
-   * Handle configuration changes mid-window
-   * This allows dynamic updates without service restart
-   */
+
   async updateConfig(newLimits) {
-    // In production, this would reload from config service
-    // For now, just validate structure
     if (newLimits.endpoints && newLimits.tiers) {
       console.log('Configuration updated:', Object.keys(newLimits.endpoints));
       return true;

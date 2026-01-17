@@ -148,7 +148,6 @@ describe('Edge Cases & Error Handling', () => {
       
       const allowedCount = results.filter(r => r.allowed).length;
       
-      // Should not exceed capacity (with slow start: ~60 total)
       expect(allowedCount).toBeGreaterThan(50);
       expect(allowedCount).toBeLessThanOrEqual(120);
     });

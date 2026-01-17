@@ -43,7 +43,6 @@ describe('RateLimiter Core Functionality', () => {
         }
       }
       
-      // Should allow around 60 requests (50% slow start of 100 + 10 burst)
       expect(blockedAt).toBeGreaterThan(50);
       expect(blockedAt).toBeLessThanOrEqual(70);
     });
@@ -75,17 +74,13 @@ describe('RateLimiter Core Functionality', () => {
     test('should consume tokens based on request cost', async () => {
       const userId = 'cost-test-user-' + Date.now();
       
-      // Make first request to establish baseline
       await rateLimiter.checkRateLimit(userId, '/api/checkout', 'free', 'default', 1);
       
-      // Wait a moment for token refill
       await new Promise(resolve => setTimeout(resolve, 100));
       
       const result1 = await rateLimiter.checkRateLimit(userId, '/api/checkout', 'free', 'default', 1);
       const result2 = await rateLimiter.checkRateLimit(userId, '/api/checkout', 'free', 'default', 1);
       
-      // Checkout has base cost of 5, but with slow start (0.5) for new user
-      // Effective cost = 5 * slowStartMultiplier ≈ 2.5
       const consumed = Math.abs(result1.remaining - result2.remaining);
       expect(consumed).toBeGreaterThanOrEqual(2);
       expect(consumed).toBeLessThanOrEqual(3);
