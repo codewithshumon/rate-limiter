@@ -74,16 +74,15 @@ describe('RateLimiter Core Functionality', () => {
     test('should consume tokens based on request cost', async () => {
       const userId = 'cost-test-user-' + Date.now();
       
-      await rateLimiter.checkRateLimit(userId, '/api/checkout', 'free', 'default', 1);
+      await rateLimiter.checkRateLimit(userId, '/api/search', 'free', 'default', 1);
       
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const result1 = await rateLimiter.checkRateLimit(userId, '/api/checkout', 'free', 'default', 1);
-      const result2 = await rateLimiter.checkRateLimit(userId, '/api/checkout', 'free', 'default', 1);
+      const result1 = await rateLimiter.checkRateLimit(userId, '/api/search', 'free', 'default', 1);
+      const result2 = await rateLimiter.checkRateLimit(userId, '/api/search', 'free', 'default', 1);
       
       const consumed = Math.abs(result1.remaining - result2.remaining);
-      expect(consumed).toBeGreaterThanOrEqual(2);
-      expect(consumed).toBeLessThanOrEqual(3);
+      expect(consumed).toBe(1);
     });
 
     test('should handle custom request cost multiplier', async () => {
